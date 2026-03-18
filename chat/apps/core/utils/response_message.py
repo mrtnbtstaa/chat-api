@@ -32,9 +32,9 @@ def error_response(
     }, status=status_code)
 
 def response_message(
-    is_success: bool,
     status: str,
     message: str,
+    is_success: Optional[bool] = True,
     error_code: Optional[str] = "REQUEST DENIED",
     errors: Optional[List[Dict[str, Any]]] = None,
     data: Optional[Any] = None,
