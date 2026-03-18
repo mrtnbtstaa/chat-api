@@ -1,6 +1,6 @@
 from rest_framework.views import exception_handler
 from .utils import response_message
-from rest_framework.exceptions import Throttled, ParseError, AuthenticationFailed, NotAuthenticated, MethodNotAllowed
+from rest_framework.exceptions import Throttled, ParseError, AuthenticationFailed, NotAuthenticated, MethodNotAllowed, ValidationError
 from rest_framework import status
 from django.http import Http404
 
@@ -25,6 +25,13 @@ def custom_exception_handler(exc, context):
         return response_message(
             success=False,
             message="Invalid JSON format in request body",
+            status_code=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if isinstance(exc, ValidationError):
+        return response_message(
+            success=False,
+            message=exc.detail,
             status_code=status.HTTP_400_BAD_REQUEST
         )
     
