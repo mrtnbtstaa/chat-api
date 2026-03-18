@@ -14,6 +14,7 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+from datetime import timedelta
 
 
 # Quick-start development settings - unsuitable for production
@@ -25,12 +26,13 @@ SECRET_KEY = 'django-insecure-z^@n7tbr*w1(bt)x3j)r5*^&9!javylu4(*9!4adsou_fl+8x3
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'apps.app_authentication',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
@@ -119,10 +121,27 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+
+    # Enable ROTATE_REFRESH_TOKENS to ensure gets a new refresh token
+    'ROTATE_REFRESH_TOKENS': True,
+
+    # Enable BLACKLIST_AFTER_ROTATION this ensures the old refresh token immediately invalidated after it has been used.
+    'BLACKLIST_AFTER_ROTATION': True,
+
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'JTI_CLAIM': 'jti',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+}
+
+AUTH_USER_MODEL = 'app_authentication.User'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.app_authentication.jwt_authentication.CustomJWTAuthentication',
     ),
     'EXCEPTION_HANDLER': 'apps.core.exception.custom_exception_handler'
 }
