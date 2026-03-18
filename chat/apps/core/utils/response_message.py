@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from typing import Optional, Any
+from typing import Optional, Any, List, Dict
 
 def success_response(
     status: str,
@@ -36,7 +36,7 @@ def response_message(
     status: str,
     message: str,
     error_code: Optional[str] = "REQUEST DENIED",
-    errors: Optional[Any] = None,
+    errors: Optional[List[Dict[str, Any]]] = None,
     data: Optional[Any] = None,
     status_code: Optional[int] = None
 ) -> Response:
@@ -59,7 +59,7 @@ def response_message(
         status=status,
         message=message,
         code=error_code,
-        details=errors,
+        details=errors or [],
         status_code=sc
     )
     
