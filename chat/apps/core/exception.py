@@ -1,5 +1,5 @@
 from rest_framework.views import exception_handler
-from .utils import response_message
+from apps.core.utils.response_message import response_message
 from rest_framework.exceptions import Throttled, ParseError, AuthenticationFailed, NotAuthenticated, MethodNotAllowed, ValidationError
 from rest_framework import status
 from django.http import Http404
