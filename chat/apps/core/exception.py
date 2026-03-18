@@ -3,7 +3,7 @@ from apps.core.utils.response_message import response_message
 from rest_framework.exceptions import Throttled, ParseError, AuthenticationFailed, NotAuthenticated, MethodNotAllowed, ValidationError
 from rest_framework import status
 from django.http import Http404
-
+from rest_framework_simplejwt.exceptions import TokenError
 
 def custom_exception_handler(exc, context):
 
@@ -43,6 +43,19 @@ def custom_exception_handler(exc, context):
             errors=[{
                 "field": "body",
                 "issue": "malformed_json"
+            }]
+        )
+    
+    if isinstance(exc, TokenError):
+        return response_message(
+            is_success=False,
+            status="error",
+            message="Token has expired or invalid.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code="UNAUTHORIZED",
+            errors=[{
+                "field": "token",
+                "issue": "invalid_token"
             }]
         )
     
@@ -92,27 +105,7 @@ def custom_exception_handler(exc, context):
         )
 
     # Call DRF default exception handler first to get the error response
-    response = exception_handler(exc, context)
-    
-    # Response has error
-    if response and isinstance(response.data, dict):
-
-        error_msg = response.data.get('detail', 'An unexpected error occurred on our end')
-
-        if isinstance(response.data, dict) and 'detail' not in response.data:
-            error_msg = "Validation failed."
-        
-        return response_message(
-            is_success=False,
-            status="error",
-            message=error_msg,
-            errors=[{
-                "field": "server",
-                "issue": "internal_error"
-            }],
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_code="INTERNAL_SERVER_ERROR"
-        )
+    # response = exception_handler(exc, context)
 
     import traceback
     traceback.print_exc()
@@ -120,6 +113,11 @@ def custom_exception_handler(exc, context):
     return response_message(
         is_success=False,
         status="error",
-        message="A server error occurred",
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        error_code="INTERNAL_SERVER_ERROR",
+        message="An unexpected error occurred on our end",
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        errors=[{
+            "field": "server",
+            "issue": "internal_error"
+        }],
     )
