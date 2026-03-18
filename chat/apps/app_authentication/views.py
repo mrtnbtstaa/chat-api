@@ -3,19 +3,20 @@ from rest_framework.throttling import ScopedRateThrottle
 from apps.core.utils.response_message import response_message
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.management import call_command
 
 from .serializers import (
     CustomLoginObtainPairSerializer,
-    CustomTokenRefreshSerializer
+    CustomTokenRefreshSerializer,
+    RegisterSerializer
 )
 
 class CustomLoginObtainPairView(TokenObtainPairView):
 
     serializer_class = CustomLoginObtainPairSerializer
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = (ScopedRateThrottle, )
 
     def post(self, request, *args, **kwargs):
         
@@ -33,7 +34,7 @@ class CustomTokenRefreshView(TokenRefreshView):
 
     serializer_class = CustomTokenRefreshSerializer
     permission_classes = (IsAuthenticated,)
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = (ScopedRateThrottle, )
 
     def post(self, request, *args, **kwargs):
         
@@ -47,6 +48,23 @@ class CustomTokenRefreshView(TokenRefreshView):
             data=serializer.data
         )
     
+
+class RegisterView(generics.CreateAPIView):
+
+    throttle_classes = (ScopedRateThrottle,)
+    serializer_class = RegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        
+        serializer = self.get_serializer(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        return response_message(
+            success=True,
+            message="Successfully created an account",
+            status_code=status.HTTP_201_CREATED
+        )
 
 class LogoutView(APIView):
 

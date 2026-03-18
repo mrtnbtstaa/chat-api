@@ -4,6 +4,7 @@ from rest_framework.exceptions import Throttled, ParseError, AuthenticationFaile
 from rest_framework import status
 from django.http import Http404
 
+
 def custom_exception_handler(exc, context):
 
     if isinstance(exc, Http404):
