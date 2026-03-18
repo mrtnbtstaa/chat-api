@@ -34,6 +34,7 @@ ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     'apps.app_authentication',
     'rest_framework',
+    'rest_framework.throttling',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'django.contrib.admin',
@@ -122,7 +123,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 
     # Enable ROTATE_REFRESH_TOKENS to ensure gets a new refresh token
@@ -134,7 +135,7 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'JTI_CLAIM': 'jti',
 
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    # 'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
 AUTH_USER_MODEL = 'app_authentication.User'
@@ -143,5 +144,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'apps.app_authentication.jwt_authentication.CustomJWTAuthentication',
     ),
-    'EXCEPTION_HANDLER': 'apps.core.exception.custom_exception_handler'
+    'EXCEPTION_HANDLER': 'apps.core.exception.custom_exception_handler',
+    'DEFAULT_THROTTLE_RATES':{
+        'auth_limit': '15/minute' # 15 request per 60 second
+    }
 }

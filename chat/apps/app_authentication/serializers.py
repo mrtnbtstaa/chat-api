@@ -1,4 +1,4 @@
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer, TokenBlacklistSerializer
 from rest_framework import serializers
 from django.db import transaction, IntegrityError
 from apps.core.utils.validators import is_field_empty
@@ -14,24 +14,12 @@ class CustomTokenRefreshSerializer(TokenRefreshSerializer):
 
     def validate(self, attrs):
 
-        try:
+        data = super().validate(attrs)
 
-            refresh_token = attrs.get('refresh')
-
-            if is_field_empty(refresh_token):
-                raise_validation("Refresh token is required")
-
-            data = super().validate(attrs)
-
-            return {
-                "tokens": {
-                    "access_token": data["access"],
-                    "refresh_token": data["refresh"] 
-                }
-            }
-
-        except TokenError as e:
-            raise_validation("Token has expired or invalid.")
+        return {
+            "access_token": data["access"],
+            "refresh_token": data["refresh"]
+        }
       
 
 class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
@@ -49,7 +37,7 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
         if is_field_empty(password):
             raise_validation("Password is required")
 
-        user = authenticate(request, username, password)
+        user = authenticate(request=request, username=username, password=password)
 
         if user is None:
             raise_validation("Invalid credentials")
@@ -133,7 +121,16 @@ class RegisterSerializer(serializers.Serializer):
 
         
         
+class LogoutBlacklistSerializer(TokenBlacklistSerializer):
 
+    def validate(self, attrs):
+        
+        refresh = attrs.get('refresh')
+
+        if not refresh:
+            raise_validation("Refresh token is required")
+
+        return super().validate(attrs)
 
 
 
