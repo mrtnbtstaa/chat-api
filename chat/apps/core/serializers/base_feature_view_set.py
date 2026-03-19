@@ -81,7 +81,7 @@ class BaseFeatureViewSet(
 
         serializer.is_valid(raise_exception=True)
         
-        instance = self.perform_create(serializer)
+        self.perform_create(serializer)
 
         return response_message(
             success=True,
