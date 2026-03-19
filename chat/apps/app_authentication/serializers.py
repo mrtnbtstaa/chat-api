@@ -7,6 +7,7 @@ from django.contrib.auth import login, authenticate
 from rest_framework_simplejwt.exceptions import TokenError
 from .models import User, Profile
 from apps.core.utils.dynamic_char_field import DynamicCharField
+from rest_framework.exceptions import AuthenticationFailed
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
 
@@ -40,22 +41,31 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
         user = authenticate(request=request, username=username, password=password)
 
         if user is None:
-            raise_validation("Invalid credentials")
+            raise AuthenticationFailed("Invalid credentials")
 
         login(request, user)
 
         token = self.get_token(user)
 
-        profile = (
-            getattr(getattr(user, 'user_profile'), 'picture', None).url
-            if getattr(getattr(user, 'user_profile'), 'picture', None)
-            else None
-        )
+        profile = getattr(user, 'user_profile', None)
+
+        if profile and profile.picture:
+
+            try:
+                if profile.picture.storage.exists(profile.picture.name):
+                    picture_url = profile.picture.url
+                else:
+                    picture_url = None
+            except Exception:
+                picture_url = None
+        else:
+            picture_url = None
+        
 
         return {
             "user_id": user.id,
             "username": user.username,
-            "profile": profile,
+            "profile": picture_url,
             "tokens": {
                 "access_token": str(token.access_token),
                 "refresh_token": str(token)

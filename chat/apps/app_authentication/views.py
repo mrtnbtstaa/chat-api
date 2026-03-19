@@ -1,10 +1,7 @@
 from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView, TokenBlacklistView
-from rest_framework.throttling import ScopedRateThrottle, AnonRateThrottle, UserRateThrottle, SimpleRateThrottle
+from rest_framework.throttling import ScopedRateThrottle
 from apps.core.utils.response_message import response_message
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
 from rest_framework import status, generics
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.management import call_command
 
 from .serializers import (
@@ -28,11 +25,7 @@ class CustomLoginObtainPairView(TokenObtainPairView):
 
         serializer.is_valid(raise_exception=True)
 
-        print(f"Data: {serializer.data}")
-
         return response_message(
-            is_success=True,
-            status="success",
             message="Successfully logged in",
             data=serializer.validated_data
         )
@@ -52,8 +45,6 @@ class CustomTokenRefreshView(TokenRefreshView):
         serializer.is_valid(raise_exception=True)
 
         return response_message(
-            is_success=True,
-            status="success",
             message="Successfully Refresh a token",
             data=serializer.validated_data
         )
@@ -75,8 +66,6 @@ class RegisterView(generics.CreateAPIView):
         serializer.save()
 
         return response_message(
-            is_success=True,
-            status="success",
             message="Successfully created an account",
             status_code=status.HTTP_201_CREATED
         )
@@ -92,8 +81,6 @@ class LogoutView(TokenBlacklistView):
         serializer.is_valid(raise_exception=True)
 
         return response_message(
-            is_success=True,
-            status="success",
             message="Successfully logged out",
             status_code=status.HTTP_205_RESET_CONTENT
         )
