@@ -2,9 +2,9 @@
 from .base import *
 from decouple import config, Csv
 
-DEBUG = False
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-SECRET_KEY = config("SECRET_KEY")
+SECRET_KEY = config('SECRET_KEY')
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
 
@@ -15,6 +15,4 @@ DATABASES = {
     }
 }
 
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = False

@@ -106,7 +106,7 @@ class BaseFeatureViewSet(
         queryset = self.filter_queryset(self.get_queryset())
 
         # Handle pagination
-        page = self.paginate_queryset(queryset)
+        self.paginate_queryset(queryset)
 
         # Check if pagination is enabled and if the DEF paginator is configured
         if self.with_pagination and self.paginator is not None:
