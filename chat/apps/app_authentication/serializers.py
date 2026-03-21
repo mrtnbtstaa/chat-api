@@ -1,4 +1,4 @@
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer, TokenBlacklistSerializer
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer, TokenBlacklistSerializer, TokenVerifySerializer
 from rest_framework import serializers
 from django.db import transaction, IntegrityError
 from apps.core.utils.validators import is_field_empty
@@ -96,7 +96,10 @@ class RegisterSerializer(serializers.Serializer):
     def validate(self, attrs):
 
         if attrs["password"] != attrs["confirm_password"]:
-            raise_validation("Passwords do not match.")
+            raise_validation(
+                key="password",
+                message="Passwords do not match."
+            )
 
         return attrs
     
@@ -125,7 +128,10 @@ class RegisterSerializer(serializers.Serializer):
 
                 return user
         except IntegrityError:
-            raise_validation("This username is already taken")
+            raise_validation(
+                key="username",
+                message="This username is already taken"
+            )
         except Exception:
             raise_validation("An error occurred during account creation.")
 
@@ -141,6 +147,18 @@ class LogoutBlacklistSerializer(TokenBlacklistSerializer):
             raise_validation("Refresh token is required")
 
         return super().validate(attrs)
+    
+
+class CustomTokenVerifySerializer(TokenVerifySerializer):
+
+    def validate(self, attrs):
+        try:
+            data = super().validate(attrs)
+        except Exception:
+            raise AuthenticationFailed("Your session has expired. Please log in again.")
+
+        return data
+
 
 
 

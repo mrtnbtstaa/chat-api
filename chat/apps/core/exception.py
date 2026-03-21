@@ -64,7 +64,7 @@ def custom_exception_handler(exc, context):
         error_list = [
             {
                 "field": field,
-                "issue": str(messages[0])
+                "issue": messages if isinstance(messages, str) else str(messages[0])
             }
             for field, messages in exc.detail.items()
         ]

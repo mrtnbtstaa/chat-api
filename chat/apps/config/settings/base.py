@@ -84,8 +84,8 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=1),
 
     # Enable ROTATE_REFRESH_TOKENS to ensure gets a new refresh token
     'ROTATE_REFRESH_TOKENS': True,
@@ -105,5 +105,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'apps.app_authentication.jwt_authentication.CustomJWTAuthentication',
     ),
-    'EXCEPTION_HANDLER': 'apps.core.exception.custom_exception_handler'
+    'EXCEPTION_HANDLER': 'apps.core.exception.custom_exception_handler',
+    'DEFAULT_THROTTLE_RATES': {
+        'auth_limit': '15/m'
+    }
 }

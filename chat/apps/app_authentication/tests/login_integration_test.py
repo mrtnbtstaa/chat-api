@@ -9,7 +9,6 @@ User = get_user_model()
 class LoginIntegrationTest(APITestCase):
 
     def setUp(self):
-        # Arrange
         self.username = "martin0010"
         self.password = "martin0010"
         self.user = User.objects.create_user(
@@ -58,3 +57,6 @@ class LoginIntegrationTest(APITestCase):
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+    
