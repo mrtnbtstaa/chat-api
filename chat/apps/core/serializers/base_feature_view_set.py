@@ -24,14 +24,16 @@ class BaseFeatureViewSet(
 
     with_pagination = True
 
+    ordering_fields = ['-created_at']
+
     permission_classes = [IsAuthenticated]
 
     lookup_field = 'id' # Model object lookup
 
     lookup_url_kwarg = 'id' # The URL keyword argument that will be used to extract the lookup value from the URL
 
-    prefetch_related_model = None # (reverse/M2M relations)
-    select_related_model = None # (FK/O1O relations)
+    prefetch_related_model = [] # (reverse/M2M relations)
+    select_related_model = [] # (FK/O1O relations)
 
     item_to_search = [] # 
 
@@ -65,15 +67,15 @@ class BaseFeatureViewSet(
 
         search = self.request.query_params.get('search')
 
-        if search:
+        if search and self.item_to_search:
             
             query = Q()
 
             for field in self.item_to_search:
                 query |= Q(**{f"{field}__icontains": search})
-            return qs.filter(query).order_by('created_at')
+            return qs.filter(query)
         
-        return qs.order_by('created_at')
+        return qs.order_by(*self.ordering_fields)
     
     def create(self, request, *args, **kwargs):
         
