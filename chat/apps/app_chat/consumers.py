@@ -1,0 +1,88 @@
+import json
+
+from channels.generic.websocket import AsyncWebsocketConsumer
+from asgiref.sync import async_to_sync
+
+class BaseChatConsumer(AsyncWebsocketConsumer):
+
+    async def connect(self):
+
+        user = self.scope["user"]
+        
+        # If no user found close the connection
+        if not user or self.user.is_anonymous:
+            await self.close(code=4003)
+            return
+                
+        # Create room and join the room
+        self.room_group_name = await self.get_room_name()      
+        await self.channel_layer.group_add(
+            self.room_group_name, self.channel_name
+        )
+
+        # Accept the connection
+        await self.accept()
+
+    async def disconnect(self, code):
+
+        if hasattr(self, 'room_group_name') and self.room_group_name:
+            # Leave room group
+            await self.channel_layer.group_discard(
+                self.room_group_name
+            )
+
+    async def receive(self, text_data = None, bytes_data = None):
+        
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({"error": "Invalid JSON data."}))
+            return
+        
+        # Check if the packet is typing indicator
+        if data.get("type") == "typing":
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "typing_status", # This calls the handler
+                    "user_id": self.user.id,
+                    "username": self.user.username,
+                    "is_typing": data.get("is_typing", False)
+                }
+            )
+            
+    async def get_room_name(self):
+        raise NotImplementedError("Subclasses must implement get_room_name")
+    
+    # Chat message handler
+    async def chat_message(self, event):
+        message_data = event["message"]
+        message_data["sent_by_me"] = (message_data.get("sender_id") == self.user.id)
+        await self.send(text_data=json.dumps(message_data))
+
+    # Typing status handler
+    async def typing_status(self, event):
+        # Dont send the typing indicator back to the user who is typing
+        if event["user_id"] != self.user.id:
+            await self.send(
+                text_data=json.dumps({
+                    "type": "typing",
+                    "username": event["username"],
+                    "is_typing": event["is_typing"]
+                })
+            )
+    
+
+# 1-to-1 Consumer
+class DirectChatConsumer(BaseChatConsumer):
+    async def get_room_name(self):
+        receiver_id = self.scope["url_route"]["kwargs"]["receiver_id"]
+        ids = sorted[str(self.user.id), str(receiver_id)]
+        return f"chat_direct_{ids[0]}_{ids[1]}"
+    
+
+# Group chat Consumer
+class GroupChatConsumer(BaseChatConsumer):
+    async def get_room_name(self):
+        group_name = self.scope["url_route"]["kwargs"]["group_name"]
+        return f"chat_group_{group_name}"
