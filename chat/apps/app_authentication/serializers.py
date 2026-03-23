@@ -4,10 +4,12 @@ from django.db import transaction, IntegrityError
 from apps.core.utils.validators import is_field_empty
 from apps.core.utils.helpers import raise_validation
 from django.contrib.auth import login, authenticate
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from .models import User, Profile
 from apps.core.utils.dynamic_char_field import DynamicCharField
 from rest_framework.exceptions import AuthenticationFailed
+from django.utils import timezone
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
 
@@ -45,6 +47,11 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
 
         login(request, user)
 
+        user.is_online = True
+        user.last_login = timezone.now()
+
+        user.save()
+
         token = self.get_token(user)
 
         profile = getattr(user, 'user_profile', None)
@@ -65,7 +72,10 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
         return {
             "user_id": user.id,
             "username": user.username,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
             "profile": picture_url,
+            "is_online": user.is_online,
             "tokens": {
                 "access_token": str(token.access_token),
                 "refresh_token": str(token)
@@ -88,6 +98,8 @@ class RegisterSerializer(serializers.Serializer):
     profile_image = serializers.ImageField(allow_null=True, required=False)
 
     username = DynamicCharField()
+    first_name = DynamicCharField()
+    last_name = DynamicCharField()
 
     password = DynamicCharField(min_length=8, write_only=True)
 
@@ -115,10 +127,7 @@ class RegisterSerializer(serializers.Serializer):
                 profile_image = validated_data.pop('profile_image', None)
 
                 # User creation
-                user = User.objects.create_user(
-                    username=validated_data.get('username'),
-                    password=validated_data.get('password')
-                )
+                user = User.objects.create_user(**validated_data)
 
                 # Profile creation
                 Profile.objects.create(
@@ -146,8 +155,22 @@ class LogoutBlacklistSerializer(TokenBlacklistSerializer):
         if not refresh:
             raise_validation("Refresh token is required")
 
+        refresh_token = RefreshToken(refresh)
+        
+        user_id = refresh_token.get('user_id')
+
+        user = User.objects.get(id=user_id)
+
+        if user is None:
+            raise_validation("No user found")
+
+        user.is_online = False
+        user.last_login = timezone.now()
+
+        user.save()
+
         return super().validate(attrs)
-    
+            
 
 class CustomTokenVerifySerializer(TokenVerifySerializer):
 
