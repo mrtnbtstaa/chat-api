@@ -84,7 +84,7 @@ def custom_exception_handler(exc, context):
             status="error",
             message="Authentication credentials were not provided or invalid.",
             status_code=status.HTTP_401_UNAUTHORIZED,
-            error_code="UNAUTHORIZED",
+            error_code="UNAUTHORIZED_",
             errors=[{
                 "field": "auth",
                 "issue": "missing_or_invalid_token"

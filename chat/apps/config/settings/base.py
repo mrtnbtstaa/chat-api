@@ -53,8 +53,11 @@ WSGI_APPLICATION = 'chat.wsgi.application'
 ASGI_APPLICATION = 'chat.asgi.application'
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
 }
 # CHANNEL_LAYERS = {
 #     "default": {
@@ -102,10 +105,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 
-    # Enable ROTATE_REFRESH_TOKENS to ensure gets a new refresh token
+    # Enable ROTATE_REFRESH_TOKENS to ensure gets a new refresh tok1en
     'ROTATE_REFRESH_TOKENS': True,
 
     # Enable BLACKLIST_AFTER_ROTATION this ensures the old refresh token immediately invalidated after it has been used.

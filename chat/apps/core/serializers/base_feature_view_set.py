@@ -79,14 +79,13 @@ class BaseFeatureViewSet(
     
     def create(self, request, *args, **kwargs):
         
-        serializer = self.get_serializer(data=request.data, many=self.many)
+        serializer = self.get_serializer(data=request.data, many=self.many, context={"request": request})
 
         serializer.is_valid(raise_exception=True)
         
         self.perform_create(serializer)
 
         return response_message(
-            success=True,
             message=self.success_create_message,
             status_code=status.HTTP_201_CREATED
         )
@@ -98,7 +97,6 @@ class BaseFeatureViewSet(
         serializer = self.get_serializer(instance)
 
         return response_message(
-            success=True,
             data=serializer.data,
             message=self.success_retrieve_message
         )
@@ -121,7 +119,6 @@ class BaseFeatureViewSet(
                 paginated_data = self.get_paginated_response(serializer.data)
 
                 return response_message(
-                    status_code=True,
                     message=self.success_list_message,
                     data=paginated_data.data
                 )
@@ -130,9 +127,8 @@ class BaseFeatureViewSet(
         serializer = self.get_serializer(queryset, many=True)
 
         return response_message(
-            success=True,
             message=self.success_list_message,
-            data=serializer.data
+            data=serializer.data,
         )
         
 
@@ -147,9 +143,8 @@ class BaseFeatureViewSet(
         self.perform_update(serializer)
 
         return response_message(
-            success=True,
             message=self.success_update_message,
-            data=serializer.data
+            data=serializer.data,
         )
     
     def update(self, request, *args, **kwargs):
@@ -166,9 +161,7 @@ class BaseFeatureViewSet(
         self.perform_destroy(instance)
 
         return response_message(
-            success=True,
             message=self.success_delete_message,
-
         )
 
 

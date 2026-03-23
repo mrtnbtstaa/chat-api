@@ -42,7 +42,7 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
 
         if user is None:
             raise AuthenticationFailed("Invalid credentials")
-
+        
         login(request, user)
 
         token = self.get_token(user)

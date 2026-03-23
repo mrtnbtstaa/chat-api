@@ -29,10 +29,10 @@ class ChatRoom(UUIDTimestampModel):
             self.slug = slugify(self.name) 
         return super().save(*args, **kwargs)
     
-    def get_group_name(self):
+    def get_group_name(self, recipient_id):
         if self.room_type == self.RoomType.GROUP:
             return f"chat_group_{self.slug}"
-        return f"chat_direct_{str(self.id)}"
+        return f"chat_direct_{str(recipient_id)}"
     
     class Meta:
         indexes = [

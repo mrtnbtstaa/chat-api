@@ -8,11 +8,41 @@ from .models import ChatRoom, Message
 
 User = get_user_model()
 
-class CreateGroupChatSerializer(serializers.ModelSerializer):
-    pass
+class GroupChatSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = ChatRoom
+        fields = ['id', 'name', 'slug', 'room_type']
+        read_only_fields = ['id', 'slug', 'room_type']
+
+    def create(self, validated_data):
+        # Set the room_type as GROUP
+        validated_data['room_type'] = ChatRoom.RoomType.GROUP
+        user = self.context['request'].user
+
+        # Create the room (Slug is handled in model.save())
+        room = ChatRoom.objects.create(**validated_data)
+
+        # Add the creator as participants
+        room.participants.add(user)
+
+        return room
+    
 
 class CreateMessageSerializer(serializers.ModelSerializer):
-    pass
+
+    class Meta:
+        model = Message
+        fields = ['id', 'text', 'created_at']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data["sender_id"] = str(instance.sender.id)
+
+        data.pop('id')
+        return data
+
 
 class ListChatUserSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
@@ -30,7 +60,7 @@ class ListChatUserSerializer(serializers.ModelSerializer):
             'created_at'
         ]
 
-    def display_name(self, obj):
+    def get_display_name(self, obj):
 
         if obj.room_type == ChatRoom.RoomType.GROUP:
             return None
@@ -49,20 +79,22 @@ class ListChatUserSerializer(serializers.ModelSerializer):
             return None #
         
         # Return the other person's profile picture
-        user = self.context["user"].user
+        request = self.context["request"]
+
+        user = request.user
 
         other_participant = obj.participants.exclude(id=user.id).first()
 
         if other_participant and hasattr(other_participant, 'user_profile'):
-            return other_participant.user_profile.picture.url
+            return request.build_absolute_uri(other_participant.user_profile.picture.url)
         return None
 
     def get_last_message(self, obj):
 
-        last_message = obj.messages.order_by('-created_at').latest()
+        last_message = obj.messages.order_by('-created_at').first()
         if last_message:
             return {
                 "text": last_message.text[:15],
                 "sender": last_message.sender.username,
-                "timestamp": last_message.created_at
+                "last_message_at": last_message.created_at
             }  
