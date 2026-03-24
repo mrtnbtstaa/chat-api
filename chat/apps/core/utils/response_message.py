@@ -1,33 +1,69 @@
 from rest_framework.response import Response
-from typing import Optional, Dict, Any, Type, List
+from typing import Optional, Any, List, Dict
+
+def success_response(
+    status: str,
+    message: str,
+    status_code: int = 200,
+    data: Optional[Any] = None
+) -> Response:
+    
+    return Response({
+        "status": status,
+        "message": message,
+        "data": data,
+    }, status=status_code)
+
+def error_response(
+    status: str,
+    message: str,
+    code: str,
+    details: Optional[Any] = None,
+    status_code: int = 400,
+) -> Response:
+    
+    return Response({
+        "status": status,
+        "error": {
+            "code": code,
+            "message": message,
+            "details": details
+        }
+    }, status=status_code)
 
 def response_message(
-    success: bool,
     message: str,
-    errors: Optional[Dict[str, Any]] = None,
+    status: Optional[str] = "success",
+    is_success: Optional[bool] = True,
+    error_code: Optional[str] = "REQUEST DENIED",
+    errors: Optional[List[Dict[str, Any]]] = None,
     data: Optional[Any] = None,
-    status_code: int = 200
+    status_code: Optional[int] = None
 ) -> Response:
 
     """
-        Helper function to return json response
-
-        Args:
-            success (bool): data to be returned either true or false in the response
-            message (str): Message of the error or success reponse
-            data (Dict): Optional Additional data to be returned in the response,
-            errors (Dict): Optional Additional data to be returned when error occured in response,
-            status_code: (int): HTTP status code for the response
-
-        Returns: Json Response with the given data
+    Dispatcher helper to return either success or error response.
     """
+
+    if is_success:
+        sc = status_code or 200
+        return success_response(
+            status=status,
+            message=message,
+            data=data,
+            status_code=sc
+        )
     
-    return Response({
-        "success": success,
-        "message": message,
-        "data": data, # Will be null if not provided
-        "errors": errors # Will be null if not provided
-    }, status=status_code)
+    sc = status_code or 400
+    return error_response(
+        status=status,
+        message=message,
+        code=error_code,
+        details=errors or [],
+        status_code=sc
+    )
+    
+    
 
 
 

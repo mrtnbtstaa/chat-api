@@ -24,14 +24,16 @@ class BaseFeatureViewSet(
 
     with_pagination = True
 
+    ordering_fields = ['-created_at']
+
     permission_classes = [IsAuthenticated]
 
     lookup_field = 'id' # Model object lookup
 
     lookup_url_kwarg = 'id' # The URL keyword argument that will be used to extract the lookup value from the URL
 
-    prefetch_related_model = None # (reverse/M2M relations)
-    select_related_model = None # (FK/O1O relations)
+    prefetch_related_model = [] # (reverse/M2M relations)
+    select_related_model = [] # (FK/O1O relations)
 
     item_to_search = [] # 
 
@@ -65,26 +67,25 @@ class BaseFeatureViewSet(
 
         search = self.request.query_params.get('search')
 
-        if search:
+        if search and self.item_to_search:
             
             query = Q()
 
             for field in self.item_to_search:
                 query |= Q(**{f"{field}__icontains": search})
-            return qs.filter(query).order_by('created_at')
+            return qs.filter(query)
         
-        return qs.order_by('created_at')
+        return qs.order_by(*self.ordering_fields)
     
     def create(self, request, *args, **kwargs):
         
-        serializer = self.get_serializer(data=request.data, many=self.many)
+        serializer = self.get_serializer(data=request.data, many=self.many, context={"request": request})
 
         serializer.is_valid(raise_exception=True)
         
-        instance = self.perform_create(serializer)
+        self.perform_create(serializer)
 
         return response_message(
-            success=True,
             message=self.success_create_message,
             status_code=status.HTTP_201_CREATED
         )
@@ -96,7 +97,6 @@ class BaseFeatureViewSet(
         serializer = self.get_serializer(instance)
 
         return response_message(
-            success=True,
             data=serializer.data,
             message=self.success_retrieve_message
         )
@@ -106,7 +106,7 @@ class BaseFeatureViewSet(
         queryset = self.filter_queryset(self.get_queryset())
 
         # Handle pagination
-        page = self.paginate_queryset(queryset)
+        self.paginate_queryset(queryset)
 
         # Check if pagination is enabled and if the DEF paginator is configured
         if self.with_pagination and self.paginator is not None:
@@ -119,7 +119,6 @@ class BaseFeatureViewSet(
                 paginated_data = self.get_paginated_response(serializer.data)
 
                 return response_message(
-                    status_code=True,
                     message=self.success_list_message,
                     data=paginated_data.data
                 )
@@ -128,9 +127,8 @@ class BaseFeatureViewSet(
         serializer = self.get_serializer(queryset, many=True)
 
         return response_message(
-            success=True,
             message=self.success_list_message,
-            data=serializer.data
+            data=serializer.data,
         )
         
 
@@ -145,9 +143,8 @@ class BaseFeatureViewSet(
         self.perform_update(serializer)
 
         return response_message(
-            success=True,
             message=self.success_update_message,
-            data=serializer.data
+            data=serializer.data,
         )
     
     def update(self, request, *args, **kwargs):
@@ -164,9 +161,7 @@ class BaseFeatureViewSet(
         self.perform_destroy(instance)
 
         return response_message(
-            success=True,
             message=self.success_delete_message,
-
         )
 
 

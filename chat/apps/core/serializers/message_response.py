@@ -6,7 +6,7 @@ class MessageResponse:
     
     @property
     def success_list_message(self):
-        return f"{self.model.__name__} list retrieved successfully"
+        return f"{self.model.__name__} list successfully"
     
     @property
     def success_retrieve_message(self):
