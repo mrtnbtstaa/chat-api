@@ -6,7 +6,7 @@ from apps.core.serializers.base_feature_view_set import BaseFeatureViewSet
 from .models import ChatRoom, Message
 from apps.core.utils.response_message import response_message
 from .serializers import (
-    ListChatUserSerializer,
+    ListChatInboxUserSerializer,
     CreateMessageSerializer
 )
 
@@ -19,10 +19,10 @@ class ChatViewSet(BaseFeatureViewSet):
     queryset = ChatRoom.objects.all()
 
     serializer_action_classes = {
-        "list": ListChatUserSerializer,
+        "list": ListChatInboxUserSerializer,
         "send_direct_message": CreateMessageSerializer
     }
-    prefetch_related_model = ['participants', 'messages']
+    prefetch_related_model = ['participants', 'messages', 'participants__user_profile']
     item_to_search = ['name', 'participants__username']
 
     def base_get_queryset(self):

@@ -36,17 +36,20 @@ class CreateMessageSerializer(serializers.ModelSerializer):
         fields = ['id', 'text', 'created_at']
 
     def to_representation(self, instance):
+
         data = super().to_representation(instance)
 
-        data["sender_id"] = str(instance.sender.id)
+        data.update({
+            "sender_id": str(instance.sender.id),
+            "is_online": getattr(getattr(instance, 'sender'), 'is_online', False)
+        })
 
         data.pop('id')
         return data
 
 
-class ListChatUserSerializer(serializers.ModelSerializer):
-    display_name = serializers.SerializerMethodField()
-    display_image = serializers.SerializerMethodField()
+class ListChatInboxUserSerializer(serializers.ModelSerializer):
+
     last_message = serializers.SerializerMethodField()
 
     class Meta:
@@ -54,41 +57,50 @@ class ListChatUserSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'room_type',
-            'display_name',
-            'display_image',
             'last_message',
             'created_at'
         ]
 
-    def get_display_name(self, obj):
+    def to_representation(self, instance):
 
-        if obj.room_type == ChatRoom.RoomType.GROUP:
+        data = super().to_representation(instance)
+
+        if data["room_type"] == ChatRoom.RoomType.GROUP:
             return None
-
-        user = self.context["request"].user
-
-        # Return the other person's username
-        other_participants = obj.participants.exclude(id=user.id).first()
-
-        return other_participants.username if other_participants else "Unknown user"
-    
-    def get_display_image(self, obj):
-
-        # If it's a group, can display the group icon
-        if obj.room_type == ChatRoom.RoomType.GROUP:
-            return None #
         
-        # Return the other person's profile picture
         request = self.context["request"]
 
-        user = request.user
+        current_user = request.user if request else None
 
-        other_participant = obj.participants.exclude(id=user.id).first()
+        # Find the participants who is not the current user
+        # User first() to get the single user on the other end
+        other_participant = instance.participants.exclude(id=current_user.id).first()
 
-        if other_participant and hasattr(other_participant, 'user_profile'):
-            return request.build_absolute_uri(other_participant.user_profile.picture.url)
+        # Fallback if chat with yourself or no other user exists
+        if not other_participant:
+            other_participant = current_user
+
+        if other_participant:
+            data.update({
+                "username": other_participant.username,
+                "first_name": other_participant.first_name,
+                "last_name": other_participant.last_name,
+                "is_online": getattr(other_participant, 'is_online', False),
+                "profile_image": self.get_profile_image(other_participant, request)
+            })
+
+        return data
+    
+
+    def get_profile_image(self, user, request):
+        try:
+            if hasattr(user, 'user_profile') and user.user_profile.picture:
+                return request.build_absolute_uri(user.user_profile.picture.url)
+        except:
+            pass
         return None
 
+ 
     def get_last_message(self, obj):
 
         last_message = obj.messages.order_by('-created_at').first()

@@ -22,7 +22,7 @@ class Profile(UUIDTimestampModel):
     picture = models.ImageField(
         max_length=255,
         blank=True,
-        null=True
+        null=True,
     )
 
     def __str__(self):
