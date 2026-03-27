@@ -1,3 +1,5 @@
 .scannerwork/
 __pycache__/
 .env
+.chatvenv
+*.sqlite3
