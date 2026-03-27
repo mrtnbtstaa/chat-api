@@ -65,15 +65,7 @@ class BaseFeatureViewSet(
         if self.prefetch_related_model:
             qs = qs.prefetch_related(*self.prefetch_related_model)
 
-        search = self.request.query_params.get('search')
-
-        if search and self.item_to_search:
-            
-            query = Q()
-
-            for field in self.item_to_search:
-                query |= Q(**{f"{field}__icontains": search})
-            return qs.filter(query)
+        self.apply_search(qs)
         
         return qs.order_by(*self.ordering_fields)
     
@@ -163,6 +155,17 @@ class BaseFeatureViewSet(
         return response_message(
             message=self.success_delete_message,
         )
+    
+    def apply_search(self, qs):
+        search = self.request.query_params.get('search')
+
+        if search and self.item_to_search:
+            query = Q()
+            for field in self.item_to_search:
+                query |= Q(**{f"{field}__icontains": search})
+            return qs.filter(query)
+        
+        return qs
 
 
 

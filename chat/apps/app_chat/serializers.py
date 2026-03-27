@@ -1,10 +1,7 @@
 from rest_framework import serializers
-from rest_framework import status
-from apps.core.utils.helpers import raise_validation
-from channels.layers import channel_layers
-from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from .models import ChatRoom, Message
+from datetime import datetime
 
 User = get_user_model()
 
@@ -37,35 +34,50 @@ class CreateMessageSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
 
+        picture = None
+
+        request = self.context["request"]
+
         data = super().to_representation(instance)
 
+        user_profile = instance.sender.user_profile
+
+        if user_profile and user_profile.picture:
+            picture = request.build_absolute_uri(getattr(user_profile, 'picture', None).url)
+
         data.update({
+            "id": str(instance.id),
+            "profile_image": picture,  
+            "is_online": getattr(getattr(instance, 'sender'), 'is_online', False),
+            "sender": f"{instance.sender.first_name} {instance.sender.last_name}",
             "sender_id": str(instance.sender.id),
-            "is_online": getattr(getattr(instance, 'sender'), 'is_online', False)
+            "sent_by_me": instance.sender.id == request.user.id
         })
 
-        data.pop('id')
         return data
 
 
 class ListChatInboxUserSerializer(serializers.ModelSerializer):
 
+    chat_id = serializers.UUIDField(source='id')
     last_message = serializers.SerializerMethodField()
+    recipient = serializers.SerializerMethodField()
+    unread_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = ChatRoom
         fields = [
-            'id',
+            'chat_id',
             'room_type',
+            'created_at',
+            'unread_count',
+            'recipient',
             'last_message',
-            'created_at'
         ]
 
-    def to_representation(self, instance):
+    def get_recipient(self, obj):
 
-        data = super().to_representation(instance)
-
-        if data["room_type"] == ChatRoom.RoomType.GROUP:
+        if obj.room_type == ChatRoom.RoomType.GROUP:
             return None
         
         request = self.context["request"]
@@ -74,24 +86,20 @@ class ListChatInboxUserSerializer(serializers.ModelSerializer):
 
         # Find the participants who is not the current user
         # User first() to get the single user on the other end
-        other_participant = instance.participants.exclude(id=current_user.id).first()
+        other_participant = obj.participants.exclude(id=current_user.id).first()
 
         # Fallback if chat with yourself or no other user exists
         if not other_participant:
             other_participant = current_user
 
-        if other_participant:
-            data.update({
-                "username": other_participant.username,
-                "first_name": other_participant.first_name,
-                "last_name": other_participant.last_name,
-                "is_online": getattr(other_participant, 'is_online', False),
-                "profile_image": self.get_profile_image(other_participant, request)
-            })
-
-        return data
+        return {
+            "user_id": other_participant.id,
+            "username": other_participant.username,
+            "display_full_name": f"{other_participant.first_name} {other_participant.last_name}".strip(),
+            "is_online": getattr(other_participant, 'is_online', False),
+            "profile_image": self.get_profile_image(other_participant, request)
+        }
     
-
     def get_profile_image(self, user, request):
         try:
             if hasattr(user, 'user_profile') and user.user_profile.picture:
@@ -100,13 +108,57 @@ class ListChatInboxUserSerializer(serializers.ModelSerializer):
             pass
         return None
 
- 
     def get_last_message(self, obj):
 
-        last_message = obj.messages.order_by('-created_at').first()
-        if last_message:
-            return {
-                "text": last_message.text[:15],
-                "sender": last_message.sender.username,
-                "last_message_at": last_message.created_at
-            }  
+        messages = getattr(obj, 'latest_msgs', [])
+
+        if not messages:
+            return None
+
+        last_message = messages[0]
+        
+        return {
+            "message_id": last_message.id,
+            "text": last_message.text[:15],
+            "sender": last_message.sender.username,
+            "last_message_at": datetime.strftime(last_message.created_at, '%I:%M %p')
+        }  
+    
+
+class ListChatMessagesSerializer(serializers.ModelSerializer):
+
+    messages = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatRoom
+        fields = ['room_type', 'messages']
+
+
+    def get_messages(self, obj):
+
+        messages = getattr(obj, 'latest_msgs', [])
+
+
+        for message in messages:
+            print(message)
+
+        return obj
+
+    # def to_representation(self, instance):
+
+    #     request = self.context['request']
+
+    #     print(f"Request: ${request}")
+
+    #     messages = getattr(instance, 'latest_msgs', [])
+
+    #     for message in messages:
+    #         print(message)
+            
+
+    #     data = super().to_representation(instance)
+
+    #     return data
+
+
+    

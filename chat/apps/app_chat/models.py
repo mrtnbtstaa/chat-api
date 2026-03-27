@@ -49,4 +49,19 @@ class Message(UUIDTimestampModel):
         indexes = [
             models.Index(fields=['room', '-created_at'])
         ]
-        ordering = ['created_at']
+        ordering = ['-created_at'] 
+
+
+class ChatRoomReadState(models.Model):
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_read_states')
+    room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='read_states')
+
+    last_read_message_id = models.UUIDField(null=True, blank=True)
+
+    # Timestamp used to calculate unread count messages
+    last_read_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'room')
+        

@@ -4,9 +4,13 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class BaseChatConsumer(AsyncWebsocketConsumer):
 
+
     async def connect(self):
 
         self.user = self.scope["user"]
+
+
+        print(f"User: {self.user}")
         
         # If user is anonymous 
         if self.user.is_anonymous:
@@ -49,8 +53,8 @@ class BaseChatConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
-                    "type": "typing_status", # This calls the handler
-                    "user_id": self.user.id,
+                    "type": "typing_status", 
+                    "user_id": str(self.user.id),
                     "username": self.user.username,
                     "is_typing": data.get("is_typing", False)
                 }
@@ -62,21 +66,29 @@ class BaseChatConsumer(AsyncWebsocketConsumer):
     # Chat message handler
     async def chat_message(self, event):
         message_data = event["message"]
-        print(f"Message data: {message_data}")
-        message_data["sent_by_me"] = (message_data.get("sender_id") == self.user.id)
-        await self.send(text_data=json.dumps(message_data))
+        message_data["sent_by_me"] = (message_data.get("sender_id") == str(self.user.id))
+        await self.send(text_data=json.dumps({
+            "type": "chat_message",
+            "data": message_data
+        }))
 
     # Typing status handler
     async def typing_status(self, event):
         # Dont send the typing indicator back to the user who is typing
-        if event["user_id"] != self.user.id:
+        if event["user_id"] != str(self.user.id):
             await self.send(
                 text_data=json.dumps({
                     "type": "typing",
                     "username": event["username"],
-                    "is_typing": event["is_typing"]
+                    "is_typing": event["is_typing"],
+                    "user_id": event["user_id"]
                 })
             )
+
+
+    async def inbox_message(self, event):
+        message = event["message"]
+        await self.send(text_data=json.dumps({"message": message}))
     
 
 # Direct Chat Consumer
@@ -84,6 +96,7 @@ class DirectChatConsumer(BaseChatConsumer):
     async def get_room_name(self):
         receiver_id = self.scope["url_route"]["kwargs"]["receiver_id"]
         ids = sorted([str(self.scope["user"].id), str(receiver_id)])
+        print(f"Direct consumer: ${ids[0]} --------- ${ids[1]}")
         return f"chat_direct_{ids[0]}_{ids[1]}"
     
 
@@ -92,3 +105,12 @@ class GroupChatConsumer(BaseChatConsumer):
     async def get_room_name(self):
         group_name = self.scope["url_route"]["kwargs"]["group_name"]
         return f"chat_group_{group_name}"
+
+
+# Chat Inbox Consumer
+class ChatInboxConsumer(BaseChatConsumer):
+    async def get_room_name(self):
+        inbox_name = self.scope["url_route"]["kwargs"]["inbox_name"]
+        return f"chat_inbox_{inbox_name}"
+
+    

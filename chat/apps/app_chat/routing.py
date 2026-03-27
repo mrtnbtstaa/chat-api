@@ -9,5 +9,9 @@ websocket_urlpatterns = [
 
     # Route for Group Chat
     # Example ws/chat/group/brodie/ -> brodie is the group_name
-    re_path(r"ws/chat/group/(?P<group_name>)/$", consumers.GroupChatConsumer.as_asgi())
+    re_path(r"ws/chat/group/(?P<group_name>)/$", consumers.GroupChatConsumer.as_asgi()),
+    
+    # Route for Chat Inbox
+    # Example ws/chat/inbox/uuid/ -> uuid=8934-abc-123
+    re_path(r"ws/chat/inbox/(?P<inbox_name>[a-f0-9\-]{36})/$", consumers.ChatInboxConsumer.as_asgi())
 ]

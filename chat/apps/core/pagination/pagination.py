@@ -2,9 +2,9 @@ from rest_framework.pagination import CursorPagination, PageNumberPagination
 
 class CustomCursorPagination(CursorPagination):
 
-    page_size = 25
+    page_size = 7
 
-    ordering = '-created_at'
+    ordering = ('-created_at', '-id')
 
     cursor_query_param = 'cursor'
 

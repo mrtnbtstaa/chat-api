@@ -18,10 +18,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'silk',
 ]
 
 # Application middleware
 MIDDLEWARE = [
+    'silk.middleware.SilkyMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -92,7 +94,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Hong_Kong'
 
 USE_I18N = True
 
@@ -131,3 +133,7 @@ REST_FRAMEWORK = {
         'auth_limit': '15/m'
     }
 }
+
+SILKY_PYTHON_PROFILER = True
+# SILKY_AUTHENTICATION = True
+# SILKY_AUTHORISATION = True
