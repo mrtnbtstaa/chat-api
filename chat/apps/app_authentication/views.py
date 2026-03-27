@@ -1,69 +1,107 @@
-from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
+from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView, TokenBlacklistView, TokenVerifyView
 from rest_framework.throttling import ScopedRateThrottle
 from apps.core.utils.response_message import response_message
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
-from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework import status, generics
 from django.core.management import call_command
 
 from .serializers import (
     CustomLoginObtainPairSerializer,
-    CustomTokenRefreshSerializer
+    CustomTokenRefreshSerializer,
+    LogoutBlacklistSerializer,
+    CustomTokenVerifySerializer,
+    RegisterSerializer
 )
 
 class CustomLoginObtainPairView(TokenObtainPairView):
 
     serializer_class = CustomLoginObtainPairSerializer
     throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_limit'
 
     def post(self, request, *args, **kwargs):
         
+        self.check_throttles(request)
+
         serializer = self.get_serializer(data=request.data, context={'request': request})
 
         serializer.is_valid(raise_exception=True)
 
         return response_message(
-            success=True,
             message="Successfully logged in",
-            data=serializer.data
+            data=serializer.validated_data
         )
     
 class CustomTokenRefreshView(TokenRefreshView):
 
     serializer_class = CustomTokenRefreshSerializer
-    permission_classes = (IsAuthenticated,)
     throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_limit'
 
     def post(self, request, *args, **kwargs):
         
+        self.check_throttles(request)
+
         serializer = self.get_serializer(data=request.data)
 
         serializer.is_valid(raise_exception=True)
 
         return response_message(
-            success=True,
             message="Successfully Refresh a token",
-            data=serializer.data
+            data=serializer.validated_data
         )
     
+class RegisterView(generics.CreateAPIView):
 
-class LogoutView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth_limit'
+    serializer_class = RegisterSerializer
 
-    permission_classes = (IsAuthenticated)
+    def post(self, request, *args, **kwargs):
+        
+        self.check_throttles(request)
 
-    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
 
-        refresh_token = request.data["refresh"]
-        token = RefreshToken(refresh_token)
-        token.blacklist()
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
 
         return response_message(
-            success=True,
+            message="Successfully created an account",
+            status_code=status.HTTP_201_CREATED
+        )
+
+class LogoutView(TokenBlacklistView):
+    
+    serializer_class = LogoutBlacklistSerializer
+
+    def post(self, request, *args, **kwargs):
+
+        serializer = self.get_serializer(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        return response_message(
             message="Successfully logged out",
             status_code=status.HTTP_205_RESET_CONTENT
         )
-    
+
+
+class CustomTokenVerifyView(TokenVerifyView):
+
+    serializer_class = CustomTokenVerifySerializer
+
+    def post(self, request, *args, **kwargs):
+
+        serializer = self.get_serializer(data=request.data)
+
+        serializer.is_valid(raise_exception=True)
+
+        return response_message(
+            message="Token is valid",
+            status_code=status.HTTP_200_OK
+        )
+
 
 def cleanup_expired_tokens():
     call_command('flushexpiredtokens')
