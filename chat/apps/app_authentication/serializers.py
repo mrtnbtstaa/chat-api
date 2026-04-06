@@ -1,15 +1,20 @@
-from rest_framework_simplejwt.serializers import TokenRefreshSerializer, TokenObtainPairSerializer, TokenBlacklistSerializer, TokenVerifySerializer
 from rest_framework import serializers
 from django.db import transaction, IntegrityError
 from apps.core.utils.validators import is_field_empty
 from apps.core.utils.helpers import raise_validation
 from django.contrib.auth import login, authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
+from django.contrib.auth import update_session_auth_hash
 from .models import User, Profile
 from apps.core.utils.dynamic_char_field import DynamicCharField
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils import timezone
+from rest_framework_simplejwt.serializers import (
+    TokenRefreshSerializer,
+    TokenObtainPairSerializer,
+    TokenBlacklistSerializer,
+    TokenVerifySerializer
+)
 
 class CustomTokenRefreshSerializer(TokenRefreshSerializer):
 
@@ -31,16 +36,16 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
         
         request = self.context.get('request')
 
-        username = attrs.get('username')
+        email = attrs.get('email')
         password = attrs.get('password')
 
-        if is_field_empty(username):
-            raise_validation("Username is required")
+        if is_field_empty(email):
+            raise_validation("Email is required")
 
         if is_field_empty(password):
             raise_validation("Password is required")
 
-        user = authenticate(request=request, username=username, password=password)
+        user = authenticate(request=request, email=email, password=password)
 
         if user is None:
             raise AuthenticationFailed("Invalid credentials")
@@ -71,10 +76,9 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
 
         return {
             "user_id": user.id,
-            "username": user.username,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "profile": picture_url,
+            "full_name": user.full_name,
+            "email": user.email,
+            "profile": request.build_absolute_uri(picture_url),
             "is_online": user.is_online,
             "tokens": {
                 "access_token": str(token.access_token),
@@ -95,11 +99,15 @@ class CustomLoginObtainPairSerializer(TokenObtainPairSerializer):
 
 class RegisterSerializer(serializers.Serializer):
 
-    profile_image = serializers.ImageField(allow_null=True, required=False)
-
-    username = DynamicCharField()
-    first_name = DynamicCharField()
-    last_name = DynamicCharField()
+    full_name = DynamicCharField()
+    email = serializers.EmailField(
+        error_messages={
+            "required": "Email is required.",
+            "null": "Email cannot be null.",
+            "blank": "Email cannot be blank.",
+            "invalid": "Email is invalid."
+        }
+    )
 
     password = DynamicCharField(min_length=8, write_only=True)
 
@@ -119,33 +127,20 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         
         try:
+            # Extract confirm password
+            validated_data.pop('confirm_password')
 
-            with transaction.atomic():
-                
-                # Extract confirm password and profile image
-                validated_data.pop('confirm_password')
-                profile_image = validated_data.pop('profile_image', None)
+            # User creation
+            user = User.objects.create_user(**validated_data)
 
-                # User creation
-                user = User.objects.create_user(**validated_data)
-
-                # Profile creation
-                Profile.objects.create(
-                    user=user,
-                    picture=profile_image
-                )
-
-                return user
+            return user
+        
         except IntegrityError:
             raise_validation(
-                key="username",
-                message="This username is already taken"
+                key="email",
+                message="This email is already taken"
             )
-        except Exception:
-            raise_validation("An error occurred during account creation.")
 
-        
-        
 class LogoutBlacklistSerializer(TokenBlacklistSerializer):
 
     def validate(self, attrs):
@@ -183,7 +178,66 @@ class CustomTokenVerifySerializer(TokenVerifySerializer):
         return data
 
 
+class ChangePasswordSerialzier(serializers.Serializer):
+
+    current_password = DynamicCharField(min_length=8, write_only=True)
+    new_password = DynamicCharField(min_length=8, write_only=True)
+    confirm_password = DynamicCharField(min_length=8, write_only=True)
 
 
+    def validate(self, attrs):
+        
+        current_password = attrs["current_password"]
+        new_password = attrs["new_password"]
+        confirm_password = attrs["confirm_password"]
+
+        request = self.context["request"]
+        
+        if not request.user.check_password(current_password):
+            raise_validation(key="current_password", message="The current password you entered is incorrect.")
+        
+        if current_password == new_password:
+            raise_validation(key="new_password", message="The new password cannot be the same as the old one.")
+
+        if new_password != confirm_password:
+            raise_validation(key="confirm_password" ,message="New and confirm password does not match")
+
+        return attrs
     
+    def update(self, instance, validated_data):
 
+        instance.set_password(validated_data["new_password"])
+        instance.save()
+
+        # Keep session alive
+        request = self.context.get("request")
+        update_session_auth_hash(request, instance)
+        # Return the new updated password
+        return instance
+
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+
+    picture = serializers.ImageField(allow_null=True, required=False)
+
+    class Meta:
+        model = Profile
+        fields = ['picture']
+
+
+    def to_representation(self, instance):
+
+        data = super().to_representation(instance)
+
+        data["profile"] = data.pop('picture')
+
+        return data
+
+    def update(self, instance, validated_data):
+
+        if 'picture' in validated_data:
+            instance.picture = validated_data.get('picture', None)
+
+        instance.save(update_fields=['picture'])
+
+        return instance

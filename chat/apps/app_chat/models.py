@@ -44,11 +44,9 @@ class Message(UUIDTimestampModel):
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
     text = models.TextField()
-
+    
     class Meta:
-        indexes = [
-            models.Index(fields=['room', '-created_at'])
-        ]
+        indexes = [models.Index(fields=['room', '-created_at'])]
         ordering = ['-created_at'] 
 
 

@@ -40,18 +40,20 @@ class CreateMessageSerializer(serializers.ModelSerializer):
 
         data = super().to_representation(instance)
 
-        user_profile = instance.sender.user_profile
+        user_profile = getattr(instance.sender, 'user_profile', None)
 
         if user_profile and user_profile.picture:
             picture = request.build_absolute_uri(getattr(user_profile, 'picture', None).url)
 
         data.update({
             "id": str(instance.id),
-            "profile_image": picture,  
-            "is_online": getattr(getattr(instance, 'sender'), 'is_online', False),
-            "sender": f"{instance.sender.first_name} {instance.sender.last_name}",
-            "sender_id": str(instance.sender.id),
-            "sent_by_me": instance.sender.id == request.user.id
+            "recipient": {
+                "profile_image": picture,  
+                "is_online": getattr(getattr(instance, 'sender'), 'is_online', False),
+                "sender": instance.sender.full_name,
+                "sender_id": str(instance.sender.id),
+                "sent_by_me": instance.sender.id == request.user.id
+            }
         })
 
         return data
@@ -94,8 +96,8 @@ class ListChatInboxUserSerializer(serializers.ModelSerializer):
 
         return {
             "user_id": other_participant.id,
-            "username": other_participant.username,
-            "display_full_name": f"{other_participant.first_name} {other_participant.last_name}".strip(),
+            # "username": other_participant.username,
+            "display_full_name": other_participant.full_name,
             "is_online": getattr(other_participant, 'is_online', False),
             "profile_image": self.get_profile_image(other_participant, request)
         }
@@ -120,8 +122,8 @@ class ListChatInboxUserSerializer(serializers.ModelSerializer):
         return {
             "message_id": last_message.id,
             "text": last_message.text[:15],
-            "sender": last_message.sender.username,
-            "last_message_at": datetime.strftime(last_message.created_at, '%I:%M %p')
+            "sender": last_message.sender.full_name,
+            "last_message_at": last_message.created_at
         }  
     
 
@@ -144,21 +146,31 @@ class ListChatMessagesSerializer(serializers.ModelSerializer):
 
         return obj
 
-    # def to_representation(self, instance):
 
-    #     request = self.context['request']
 
-    #     print(f"Request: ${request}")
+    
+class MessageChatListSerializer(serializers.ModelSerializer):
 
-    #     messages = getattr(instance, 'latest_msgs', [])
 
-    #     for message in messages:
-    #         print(message)
-            
+    class Meta:
+        model = Message
+        fields = ['id', 'text', 'created_at']
 
-    #     data = super().to_representation(instance)
 
-    #     return data
+    def to_representation(self, instance):
+
+        data = super().to_representation(instance)
+
+        data["recipient"] = {
+            "profile_image": self.context['request'].build_absolute_uri(instance.sender.user_profile.picture.url) if instance.sender.user_profile.picture else None,
+            "is_online": instance.sender.is_online,
+            "sender_id": str(instance.sender.id),
+            "sender": instance.lowered_sender_name,
+            "sent_by_me": instance.is_sent_by_me
+        }
+
+        return data
+    
 
 
     

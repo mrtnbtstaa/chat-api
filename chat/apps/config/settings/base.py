@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 from datetime import timedelta
@@ -137,3 +138,10 @@ REST_FRAMEWORK = {
 SILKY_PYTHON_PROFILER = True
 # SILKY_AUTHENTICATION = True
 # SILKY_AUTHORISATION = True
+
+
+# URL used to access the media from the browser
+MEDIA_URL = '/media/'
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'apps', 'media')
+

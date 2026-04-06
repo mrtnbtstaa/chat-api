@@ -1,4 +1,5 @@
 from asgiref.sync import async_to_sync
+from rest_framework.permissions import IsAuthenticated
 from channels.layers import get_channel_layer
 from rest_framework.decorators import action
 from apps.core.pagination.pagination import CustomCursorPagination
@@ -10,25 +11,25 @@ from django.db.models import Prefetch
 from django.utils import timezone as tz
 from datetime import timezone, datetime
 from django.db.models.functions import Coalesce
+from django.db.models import Value, BooleanField, Q
+from django.db.models.functions import Lower
 from .serializers import (
     ListChatInboxUserSerializer,
-    CreateMessageSerializer
+    CreateMessageSerializer,
+    MessageChatListSerializer
 )
 
 class ChatViewSet(BaseFeatureViewSet):
 
     model = ChatRoom
-
     pagination_class = CustomCursorPagination
 
     serializer_action_classes = {
         "list": ListChatInboxUserSerializer,
-        "chat_message_manager": CreateMessageSerializer,
     }
 
     item_to_search = [
-        'name',
-        'participants__username'
+        'participants__full_name'
     ]
         
     def base_get_queryset(self):
@@ -80,43 +81,6 @@ class ChatViewSet(BaseFeatureViewSet):
         return qs.distinct().order_by(*self.ordering_fields)
 
         
-    @action(detail=False, methods=['post', 'get'], url_path='messages')
-    def chat_message_manager(self, request):
-        if request.method == "POST":
-            return self.send_message(request)
-        if request.method == "GET":
-            return self.list_chat_messages(request)
-            
-
-    def _broadcast_to_ws(self, recipient_id, data):
-        print("Broadcasting to the WS")
-        channel_layer = get_channel_layer()
-
-        ids = sorted([str(self.request.user.id), str(recipient_id)])
-        room_group_name = f"chat_direct_{ids[0]}_{ids[1]}"
-
-        async_to_sync(channel_layer.group_send)(
-            room_group_name,
-            {
-                "type": "chat_message",
-                "message": data
-            }
-        )
-
-    def _broadcast_to_inbox(self, inbox_name, data):
-        channel_layer = get_channel_layer()
-
-        room_inbox_name = f"chat_inbox_{inbox_name}";
-    
-        async_to_sync(channel_layer.group_send)(
-            room_inbox_name,
-            {
-                "type": "inbox_message",
-                "message": data
-            }
-        )
-
-
     @action(detail=True, methods=['PATCH'], serializer_class=None)
     def mark_as_read(self, request, id=None):
 
@@ -137,46 +101,44 @@ class ChatViewSet(BaseFeatureViewSet):
         return response_message(message="Marked as read", data={'last_read_at': tz.now()})
     
 
-    def list_chat_messages(self, request):
+class ChatMessageViewSet(BaseFeatureViewSet):
 
-        queryset = Message.objects.filter(
-            room__participants=request.user
+    model = Message
+    pagination_class = CustomCursorPagination
+    permission_classes = [IsAuthenticated]
+
+    serializer_action_classes = {
+        # "send_message": CreateMessageSerializer,
+        "list": MessageChatListSerializer
+    }
+
+    item_to_search = ['text']
+
+    select_related_model = ['sender__user_profile', 'sender']
+    @action(detail=False, methods=['post'], url_path='messages')
+    def send_message(self, request):
+        return self.send_message(request)
+
+    def base_get_queryset(self):
+        return Message.objects.filter(
+            room__participants=self.request.user
         ).select_related(
-            'sender',
-            'sender__user_profile',
+            'sender', 
+            'sender__user_profile'
+        ).annotate(
+            # Handle the lowercase name in the DB
+            lowered_sender_name=Lower('sender__full_name'),
+            # Handle the "sent_by_me" logic in the DB
+            is_sent_by_me=Q(sender_id=self.request.user.id)
         ).only(
+            'id',
             'text',
             'created_at',
-            'sender__first_name',
-            'sender__last_name',
+            'sender__id',
+            'sender__full_name',
             'sender__is_online',
             'sender__user_profile__picture'
         ).order_by('-created_at')
-
-        page = self.paginate_queryset(queryset)
-
-        if page is not None:
-
-            data = []
-
-            for message in page:
-                profile = message.sender.user_profile
-
-                data.append({
-                    "id": message.id,
-                    "text": message.text,
-                    "created_at": message.created_at,
-                    "profile_image": request.build_absolute_uri(profile.picture.url) if profile and profile.picture else None,
-                    "is_online": message.sender.is_online,
-                    "sender": f"{message.sender.first_name} {message.sender.last_name}",
-                    "sender_id": str(message.sender.id),
-                    "sent_by_me": message.sender.id == request.user.id
-                })
-
-        return response_message(
-            message=self.success_list_message,
-            data=self.get_paginated_response(data).data
-        )
     
     def send_message(self, request):
 
@@ -220,8 +182,32 @@ class ChatViewSet(BaseFeatureViewSet):
             message=self.success_create_message,
             data=serializer.data
         )
+    
 
+    def _broadcast_to_ws(self, recipient_id, data):
+        print("Broadcasting to the WS")
+        channel_layer = get_channel_layer()
 
+        ids = sorted([str(self.request.user.id), str(recipient_id)])
+        room_group_name = f"chat_direct_{ids[0]}_{ids[1]}"
 
+        async_to_sync(channel_layer.group_send)(
+            room_group_name,
+            {
+                "type": "chat_message",
+                "message": data
+            }
+        )
 
+    def _broadcast_to_inbox(self, inbox_name, data):
+        channel_layer = get_channel_layer()
 
+        room_inbox_name = f"chat_inbox_{inbox_name}";
+    
+        async_to_sync(channel_layer.group_send)(
+            room_inbox_name,
+            {
+                "type": "inbox_message",
+                "message": data
+            }
+        )

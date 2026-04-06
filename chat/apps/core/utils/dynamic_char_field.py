@@ -23,3 +23,4 @@ class DynamicCharField(serializers.CharField):
             self.error_messages[key] = custom_messages[key]
 
         return super().fail(key, **kwargs)
+    
