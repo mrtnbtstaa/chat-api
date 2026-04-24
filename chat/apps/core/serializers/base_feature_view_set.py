@@ -22,6 +22,8 @@ class BaseFeatureViewSet(
 
     many = False
 
+    with_response = False
+
     with_pagination = True
 
     ordering_fields = ['-created_at']
@@ -32,8 +34,8 @@ class BaseFeatureViewSet(
 
     lookup_url_kwarg = 'id' # The URL keyword argument that will be used to extract the lookup value from the URL
 
-    prefetch_related_model = [] # (reverse/M2M relations)
-    select_related_model = [] # (FK/O1O relations)
+    prefetch_related_model = () # (reverse/M2M relations)
+    select_related_model = () # (FK/O1O relations)
 
     item_to_search = [] # 
 
@@ -79,7 +81,8 @@ class BaseFeatureViewSet(
 
         return response_message(
             message=self.success_create_message,
-            status_code=status.HTTP_201_CREATED
+            status_code=status.HTTP_201_CREATED,
+            data=serializer.data if self.with_response else {}
         )
     
     def retrieve(self, request, *args, **kwargs):

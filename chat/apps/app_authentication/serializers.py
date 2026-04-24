@@ -6,7 +6,7 @@ from django.contrib.auth import login, authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import update_session_auth_hash
 from .models import User, Profile
-from apps.core.utils.dynamic_char_field import DynamicCharField
+from apps.core.utils.serializer_fields import DynamicCharField
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils import timezone
 from rest_framework_simplejwt.serializers import (

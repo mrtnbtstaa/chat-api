@@ -4,7 +4,6 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class BaseChatConsumer(AsyncWebsocketConsumer):
 
-
     async def connect(self):
 
         self.user = self.scope["user"]
@@ -55,7 +54,7 @@ class BaseChatConsumer(AsyncWebsocketConsumer):
                 {
                     "type": "typing_status", 
                     "user_id": str(self.user.id),
-                    "username": self.user.username,
+                    "email": self.user.email,
                     "is_typing": data.get("is_typing", False)
                 }
             )
@@ -66,7 +65,6 @@ class BaseChatConsumer(AsyncWebsocketConsumer):
     # Chat message handler
     async def chat_message(self, event):
         message_data = event["message"]
-        message_data["sent_by_me"] = (message_data.get("sender_id") == str(self.user.id))
         await self.send(text_data=json.dumps({
             "type": "chat_message",
             "data": message_data
@@ -74,12 +72,12 @@ class BaseChatConsumer(AsyncWebsocketConsumer):
 
     # Typing status handler
     async def typing_status(self, event):
-        # Dont send the typing indicator back to the user who is typing
+        # Only send the typing status to the recipient
         if event["user_id"] != str(self.user.id):
             await self.send(
                 text_data=json.dumps({
                     "type": "typing",
-                    "username": event["username"],
+                    "email": event["email"],
                     "is_typing": event["is_typing"],
                     "user_id": event["user_id"]
                 })

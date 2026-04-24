@@ -20,6 +20,12 @@ class ChatRoom(UUIDTimestampModel):
     name = models.CharField(max_length=30, blank=True, null=True) # Name of the group chat
     slug = models.CharField(max_length=30, blank=True, null=True) # Slug of the url of the group chat
     participants = models.ManyToManyField(User, related_name='rooms') # Participants of the group chat
+    chat_group_image = models.ImageField(
+        max_length=255,
+        blank=True,
+        null=True,  
+        upload_to='group_images'
+    )
 
     def __str__(self):
         return self.name if self.name else f"Direct-{self.id}"
@@ -62,4 +68,7 @@ class ChatRoomReadState(models.Model):
 
     class Meta:
         unique_together = ('user', 'room')
+
+    def __str__(self):
+        return f"{self.user.full_name}'s Read State"
         
